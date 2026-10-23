@@ -1,0 +1,2404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GK Fitness Gym - Member & Expiry Management</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Revenue Reports -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase Compat for 100% Free Shared Live Database -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gym: {
+              black: '#0b0f19',
+              dark: '#111827',
+              card: '#1f2937',
+              accent: '#f59e0b', /* Gold/Amber gym accent */
+              accentHover: '#d97706',
+              danger: '#ef4444',
+              success: '#10b981',
+              warning: '#f97316'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      body {
+        background: white !important;
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-black">
+
+  <!-- ========================================== -->
+  <!-- 1. LOGIN SCREEN (2 Fixed Users Only)       -->
+  <!-- ========================================== -->
+  <div id="loginSection" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30">
+    <div class="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8 relative overflow-hidden">
+      <!-- Glow effect -->
+      <div class="absolute -top-16 -right-16 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-16 -left-16 w-36 h-36 bg-orange-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Header / Logo -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 mb-3 shadow-inner">
+          <i data-lucide="dumbbell" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
+          GK <span class="text-amber-500">FITNESS</span>
+        </h1>
+        <p class="text-xs uppercase tracking-widest text-slate-400 mt-1 font-semibold">Member & Revenue Manager</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="space-y-5" onsubmit="handleLogin(event)">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">User ID</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="user" class="w-5 h-5"></i>
+            </span>
+            <input 
+              type="text" 
+              id="loginUsername" 
+              required
+              autocomplete="username"
+              placeholder="e.g. gkowner or gkmanager"
+              class="w-full pl-11 pr-4 py-3 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="lock" class="w-5 h-5"></i>
+            </span>
+            <input 
+              type="password" 
+              id="loginPassword" 
+              required
+              autocomplete="current-password"
+              placeholder="Enter password"
+              class="w-full pl-11 pr-12 py-3 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
+            >
+            <button 
+              type="button" 
+              onclick="togglePasswordVisibility('loginPassword', 'eyeIcon')"
+              class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <i id="eyeIcon" data-lucide="eye" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Credentials Hint for the 2 allowed users -->
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-3 text-xs space-y-1.5 text-slate-400">
+          <div class="flex items-center justify-between text-slate-300 font-medium">
+            <span>Authorized Logins (2 Persons Only):</span>
+            <span class="text-amber-500 text-[10px] font-bold uppercase">Pre-configured</span>
+          </div>
+          <div class="flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800 cursor-pointer hover:border-amber-500/50" onclick="fillLogin('gkowner', 'gkfitness123')">
+            <span>1. <strong>Owner</strong>: <code class="text-amber-400">gkowner</code></span>
+            <span class="text-slate-500">Pass: <code class="text-slate-300">gkfitness123</code></span>
+          </div>
+          <div class="flex items-center justify-between bg-slate-900/80 px-2 py-1 rounded border border-slate-800 cursor-pointer hover:border-amber-500/50" onclick="fillLogin('gkmanager', 'gkfitness456')">
+            <span>2. <strong>Manager</strong>: <code class="text-amber-400">gkmanager</code></span>
+            <span class="text-slate-500">Pass: <code class="text-slate-300">gkfitness456</code></span>
+          </div>
+        </div>
+
+        <div id="loginError" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-lg p-2.5 text-center font-medium">
+          Invalid User ID or Password. Only 2 authorized persons allowed.
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="log-in" class="w-5 h-5"></i>
+          <span>Secure Sign In</span>
+        </button>
+      </form>
+
+      <div class="mt-6 text-center text-xs text-slate-500">
+        GK Fitness Gym System &bull; 100% Free Hosting & Database
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. MAIN APP PORTAL (Protected)             -->
+  <!-- ========================================== -->
+  <div id="appSection" class="hidden min-h-screen flex flex-col bg-slate-950">
+    
+    <!-- Top Navigation Bar -->
+    <header class="no-print sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        
+        <!-- Brand -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+            <i data-lucide="dumbbell" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-lg font-black tracking-tight text-white leading-none">
+              GK <span class="text-amber-500">FITNESS</span>
+            </div>
+            <div class="text-[10px] uppercase tracking-wider text-slate-400 mt-0.5 font-semibold">
+              Gym Member & Expiry Portal
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
+          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 bg-amber-500 text-slate-950 shadow-sm">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="switchTab('members')" id="nav-members" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/60">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Members</span>
+            <span id="badgeMemberCount" class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-800 text-slate-300">0</span>
+          </button>
+          <button onclick="switchTab('reports')" id="nav-reports" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/60">
+            <i data-lucide="line-chart" class="w-4 h-4"></i>
+            <span>Monthly Revenue</span>
+          </button>
+          <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/60">
+            <i data-lucide="database" class="w-4 h-4"></i>
+            <span>Backup & Free Hosting</span>
+          </button>
+        </nav>
+
+        <!-- User Role & Logout -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Database Cloud Sync Status Indicator -->
+          <button 
+            onclick="switchTab('settings')" 
+            id="dbStatusBtn" 
+            title="Database Connection Status - Click to manage" 
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 border border-slate-700 hover:border-amber-500/60 transition-all cursor-pointer"
+          >
+            <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="dbStatusText" class="text-slate-300 text-[11px] hidden sm:inline">Device Storage</span>
+          </button>
+
+          <div class="hidden sm:flex items-center gap-2 bg-slate-800/60 border border-slate-700/60 px-3 py-1.5 rounded-xl">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="currentUserName" class="text-xs font-semibold text-slate-200">Owner</span>
+            <span class="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Authorized</span>
+          </div>
+
+          <button 
+            onclick="handleLogout()" 
+            title="Logout" 
+            class="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 rounded-xl transition-all"
+          >
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Mobile Sub-Navigation -->
+      <div class="md:hidden flex items-center justify-around border-t border-slate-800 px-2 py-2 bg-slate-900">
+        <button onclick="switchTab('dashboard')" class="mobile-nav-btn text-xs font-semibold text-amber-500 flex flex-col items-center gap-1 py-1" id="mob-dashboard">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+          <span>Home</span>
+        </button>
+        <button onclick="switchTab('members')" class="mobile-nav-btn text-xs font-semibold text-slate-400 flex flex-col items-center gap-1 py-1" id="mob-members">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>Members</span>
+        </button>
+        <button onclick="switchTab('reports')" class="mobile-nav-btn text-xs font-semibold text-slate-400 flex flex-col items-center gap-1 py-1" id="mob-reports">
+          <i data-lucide="line-chart" class="w-4 h-4"></i>
+          <span>Revenue</span>
+        </button>
+        <button onclick="switchTab('settings')" class="mobile-nav-btn text-xs font-semibold text-slate-400 flex flex-col items-center gap-1 py-1" id="mob-settings">
+          <i data-lucide="database" class="w-4 h-4"></i>
+          <span>Backup</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: DASHBOARD VIEW                      -->
+      <!-- ========================================== -->
+      <div id="tab-dashboard" class="space-y-6 animate-fadeIn">
+        
+        <!-- Welcome Banner -->
+        <div class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950/40 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+          <div class="z-10">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2">
+              <i data-lucide="flame" class="w-3.5 h-3.5"></i> Daily Operations
+            </span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Welcome back to <span class="text-amber-500">GK Fitness Gym</span>
+            </h2>
+            <p class="text-sm text-slate-300 mt-1">
+              Easily track active memberships, upcoming expiry dates, and monthly collection revenue.
+            </p>
+          </div>
+
+          <div class="z-10 flex flex-wrap gap-2.5">
+            <button 
+              onclick="openAddMemberModal()" 
+              class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <i data-lucide="user-plus" class="w-4 h-4"></i>
+              <span>Add New Member</span>
+            </button>
+            <button 
+              onclick="filterAndShowExpiring()" 
+              class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl border border-slate-700 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <i data-lucide="alert-circle" class="w-4 h-4 text-orange-400"></i>
+              <span>Check Expiries</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5 Summary KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          
+          <!-- Total Members -->
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider">Total Members</span>
+              <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                <i data-lucide="users" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-black text-white" id="statTotalMembers">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">Gym all-time registered</div>
+          </div>
+
+          <!-- Active Members -->
+          <div class="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Active</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <i data-lucide="check-circle" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-black text-emerald-400" id="statActiveMembers">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">Valid membership ongoing</div>
+          </div>
+
+          <!-- Expiring in 7 Days -->
+          <div class="bg-slate-900/90 border border-orange-500/40 rounded-xl p-4 flex flex-col justify-between cursor-pointer hover:border-orange-500 transition-colors" onclick="filterAndShowExpiring()">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-orange-400">Expiring Soon</span>
+              <div class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-400 flex items-center justify-center">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-black text-orange-400" id="statExpiringSoon">0</div>
+            <div class="text-[11px] text-orange-300/80 mt-1">Next 7 days &bull; Click to alert</div>
+          </div>
+
+          <!-- Expired Members -->
+          <div class="bg-slate-900/90 border border-rose-500/30 rounded-xl p-4 flex flex-col justify-between cursor-pointer hover:border-rose-500 transition-colors" onclick="filterAndShowExpired()">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-rose-400">Expired</span>
+              <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-black text-rose-400" id="statExpired">0</div>
+            <div class="text-[11px] text-rose-300/80 mt-1">Needs renewal</div>
+          </div>
+
+          <!-- This Month's Revenue -->
+          <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-500/40 rounded-xl p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-amber-400" id="statCurrentMonthLabel">This Month</span>
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <i data-lucide="indian-rupee" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div class="text-2xl sm:text-3xl font-black text-amber-400" id="statCurrentMonthRevenue">₹0</div>
+            <div class="text-[11px] text-slate-400 mt-1" id="statTotalRevenueSmall">Total Revenue: ₹0</div>
+          </div>
+
+        </div>
+
+        <!-- Quick Action Alert Bar (For Expiring Members) -->
+        <div id="urgentAlertBox" class="hidden bg-orange-950/30 border border-orange-500/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2.5 rounded-xl bg-orange-500/20 text-orange-400 shrink-0">
+              <i data-lucide="bell-ring" class="w-6 h-6 animate-bounce"></i>
+            </div>
+            <div>
+              <div class="font-bold text-white text-base">
+                <span id="urgentAlertCount">0</span> Memberships Expiring This Week!
+              </div>
+              <p class="text-xs text-orange-200/70 mt-0.5">
+                Send 1-click WhatsApp reminders to ensure on-time renewals and seamless gym access.
+              </p>
+            </div>
+          </div>
+          <button 
+            onclick="filterAndShowExpiring()" 
+            class="px-4 py-2 bg-orange-500 hover:bg-orange-400 text-slate-950 font-bold text-xs rounded-xl transition-all shrink-0"
+          >
+            Review & Send WhatsApp Reminders &rarr;
+          </button>
+        </div>
+
+        <!-- Recent Expiries & Quick Renewals -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="hourglass" class="w-5 h-5 text-amber-500"></i>
+              <h3 class="text-base font-bold text-white">Upcoming & Recent Expiries</h3>
+            </div>
+            <button onclick="switchTab('members')" class="text-xs text-amber-400 hover:text-amber-300 font-semibold">
+              View All Members &rarr;
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="text-xs uppercase bg-slate-950/60 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Member Name</th>
+                  <th class="py-3 px-4">Phone</th>
+                  <th class="py-3 px-4">Plan</th>
+                  <th class="py-3 px-4">Expiry Date</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Quick Action</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardRecentExpiryBody" class="divide-y divide-slate-800/60 text-xs sm:text-sm">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: MEMBERS MANAGEMENT                  -->
+      <!-- ========================================== -->
+      <div id="tab-members" class="hidden space-y-5 animate-fadeIn">
+        
+        <!-- Member Controls: Search, Filter Tabs, Add Button -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+          
+          <!-- Search Input -->
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="search" class="w-4 h-4"></i>
+            </span>
+            <input 
+              type="text" 
+              id="memberSearchInput" 
+              oninput="renderMembers()" 
+              placeholder="Search by member name or phone..." 
+              class="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+            >
+          </div>
+
+          <!-- Filter Pills -->
+          <div class="flex items-center gap-1.5 overflow-x-auto py-1">
+            <button onclick="setMemberFilter('all')" id="filter-all" class="filter-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 transition-all">
+              All (<span id="count-all">0</span>)
+            </button>
+            <button onclick="setMemberFilter('active')" id="filter-active" class="filter-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition-all">
+              🟢 Active (<span id="count-active">0</span>)
+            </button>
+            <button onclick="setMemberFilter('expiring')" id="filter-expiring" class="filter-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition-all">
+              ⚠️ Expiring Soon (<span id="count-expiring">0</span>)
+            </button>
+            <button onclick="setMemberFilter('expired')" id="filter-expired" class="filter-pill px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition-all">
+              🔴 Expired (<span id="count-expired">0</span>)
+            </button>
+          </div>
+
+          <!-- Add Member Button -->
+          <button 
+            onclick="openAddMemberModal()" 
+            class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-xl shadow-md shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0"
+          >
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Add Member</span>
+          </button>
+        </div>
+
+        <!-- Members Table Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="text-xs uppercase bg-slate-950/70 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3.5 px-4">Member Info</th>
+                  <th class="py-3.5 px-4">Plan & Fee</th>
+                  <th class="py-3.5 px-4">Start Date</th>
+                  <th class="py-3.5 px-4">Expiry Date</th>
+                  <th class="py-3.5 px-4">Status</th>
+                  <th class="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="membersTableBody" class="divide-y divide-slate-800/60">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty state -->
+          <div id="membersEmptyState" class="hidden text-center py-12 px-4 space-y-3">
+            <div class="w-12 h-12 mx-auto rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+              <i data-lucide="users" class="w-6 h-6"></i>
+            </div>
+            <h4 class="text-white font-bold text-base">No members found</h4>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+              No gym members match your current filter or search query. Click "Add Member" to register a new gym member.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: MONTHLY REVENUE REPORTS             -->
+      <!-- ========================================== -->
+      <div id="tab-reports" class="hidden space-y-6 animate-fadeIn">
+        
+        <!-- Header & Action -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+          <div>
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="line-chart" class="w-5 h-5 text-amber-500"></i>
+              Monthly Revenue & Financial Reports
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Automated breakdown of fees collected from new admissions and membership renewals.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              onclick="window.print()" 
+              class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-all"
+            >
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Print Report</span>
+            </button>
+            <button 
+              onclick="exportRevenueCSV()" 
+              class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
+            >
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Revenue Summary Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">All-Time Total Revenue</div>
+            <div class="text-3xl font-black text-amber-400 mt-2" id="reportAllTimeTotal">₹0</div>
+            <div class="text-xs text-slate-400 mt-1" id="reportAllTimeCount">0 payments recorded</div>
+          </div>
+          <div class="bg-slate-900 border border-emerald-500/30 rounded-2xl p-5">
+            <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider" id="reportCurrentMonthTitle">This Month Revenue</div>
+            <div class="text-3xl font-black text-emerald-400 mt-2" id="reportCurrentMonthTotal">₹0</div>
+            <div class="text-xs text-slate-400 mt-1" id="reportCurrentMonthCount">0 payments this month</div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Monthly Revenue</div>
+            <div class="text-3xl font-black text-white mt-2" id="reportAverageMonthly">₹0</div>
+            <div class="text-xs text-slate-400 mt-1">Based on active months</div>
+          </div>
+        </div>
+
+        <!-- Revenue Bar & Line Chart -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-white uppercase tracking-wider">Revenue Trend (Month-by-Month)</h4>
+            <span class="text-xs text-amber-400 font-medium">Auto-calculated from memberships & renewals</span>
+          </div>
+          <div class="h-64 w-full">
+            <canvas id="revenueChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Monthly Breakdown Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div class="p-4 border-b border-slate-800 font-bold text-sm text-white">
+            Month-Wise Revenue Breakdown Table
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="text-xs uppercase bg-slate-950/70 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3.5 px-4">Month & Year</th>
+                  <th class="py-3.5 px-4">New Memberships</th>
+                  <th class="py-3.5 px-4">Renewals</th>
+                  <th class="py-3.5 px-4">Total Transactions</th>
+                  <th class="py-3.5 px-4 text-right">Total Revenue (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyReportTableBody" class="divide-y divide-slate-800/60">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: BACKUP, FREE HOSTING & SETTINGS     -->
+      <!-- ========================================== -->
+      <div id="tab-settings" class="hidden space-y-6 animate-fadeIn">
+        
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+          <div class="border-b border-slate-800 pb-4">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+              Data Backup & 100% Free Hosting Guide
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Your gym data is stored safely in your browser storage with zero monthly bills or server costs.
+            </p>
+          </div>
+
+          <!-- Section 1: 1-Click Backup & Restore -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+              <div class="flex items-center gap-2 text-white font-bold text-sm">
+                <i data-lucide="download" class="w-4 h-4 text-amber-500"></i>
+                Backup Gym Data
+              </div>
+              <p class="text-xs text-slate-400">
+                Download a complete copy of all your members, expiry dates, and revenue history to your phone or computer.
+              </p>
+              <button 
+                onclick="exportFullBackupJSON()" 
+                class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold rounded-xl text-xs border border-slate-700 transition-all flex items-center justify-center gap-2"
+              >
+                <i data-lucide="file-json" class="w-4 h-4"></i>
+                <span>Download Full Data Backup (JSON)</span>
+              </button>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+              <div class="flex items-center gap-2 text-white font-bold text-sm">
+                <i data-lucide="upload" class="w-4 h-4 text-blue-400"></i>
+                Restore Gym Data
+              </div>
+              <p class="text-xs text-slate-400">
+                Switching computers or phones? Upload your saved backup file here to restore everything instantly.
+              </p>
+              <label class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-blue-400 font-bold rounded-xl text-xs border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                <span>Restore From Backup File</span>
+                <input type="file" id="restoreFileInput" accept=".json" onchange="importFullBackupJSON(event)" class="hidden">
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 2: 100% Free Live Cloud Database (Sync between Owner & Manager) -->
+          <div class="bg-slate-950 border border-amber-500/30 rounded-xl p-5 space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="cloud-lightning" class="w-4 h-4 text-amber-500"></i>
+                    Shared Live Database (Google Firebase - 100% Free)
+                  </h4>
+                  <span id="cloudStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    Device Storage
+                  </span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">
+                  Connect a free Google Firebase database so the Owner &amp; Manager always see the <strong>exact same live members and revenue in real-time</strong> on both their mobile phones and PCs.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onclick="toggleFirebaseHelp()" 
+                class="text-xs text-amber-400 hover:text-amber-300 font-semibold underline shrink-0"
+              >
+                How to set up in 2 mins (Free)
+              </button>
+            </div>
+
+            <!-- Expandable 2-Minute Guide -->
+            <div id="firebaseHelpBox" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs space-y-2 text-slate-300">
+              <div class="font-bold text-amber-400">Quick 2-Minute Setup (100% Free Forever, No Credit Card):</div>
+              <ol class="list-decimal list-inside space-y-1.5 text-slate-400">
+                <li>Go to <a href="https://console.firebase.google.com" target="_blank" class="text-amber-400 underline font-semibold">console.firebase.google.com</a> and sign in with any Google account.</li>
+                <li>Click <strong>"Add project"</strong> &rarr; Name it <code class="text-slate-200">gk-fitness-gym</code> &rarr; Click Continue.</li>
+                <li>In the left menu, click <strong>"Build"</strong> &rarr; <strong>"Firestore Database"</strong> &rarr; <strong>"Create Database"</strong> (select Start in test mode).</li>
+                <li>Click the <strong>Project Settings Gear Icon (⚙️)</strong> &rarr; <strong>General</strong> &rarr; Scroll down to <strong>"Your apps"</strong> &rarr; Click the Web icon (<strong>&lt;/&gt;</strong>).</li>
+                <li>Copy the <code class="text-slate-200">firebaseConfig = { ... }</code> snippet and paste it below, then click "Connect Live Shared Database"!</li>
+              </ol>
+            </div>
+
+            <!-- Firebase Config Input Area -->
+            <div class="space-y-3">
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Paste Firebase Config (JSON or JavaScript snippet):
+              </label>
+              <textarea 
+                id="firebaseConfigInput" 
+                rows="4" 
+                placeholder='const firebaseConfig = {&#10;  apiKey: "AIzaSy...",&#10;  authDomain: "gk-fitness.firebaseapp.com",&#10;  projectId: "gk-fitness",&#10;  storageBucket: "gk-fitness.appspot.com",&#10;  messagingSenderId: "123456789",&#10;  appId: "1:12345:web:abcdef"&#10;};'
+                class="w-full font-mono text-xs p-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+              ></textarea>
+
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div class="text-[11px] text-slate-400" id="cloudSyncStatusDetail">
+                  Status: Storing data locally on this device.
+                </div>
+                <div class="flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onclick="disconnectFirebase()" 
+                    id="btnDisconnectCloud" 
+                    class="hidden px-3 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white text-xs font-semibold rounded-xl border border-rose-500/20 transition-all"
+                  >
+                    Disconnect Cloud
+                  </button>
+                  <button 
+                    type="button"
+                    onclick="saveFirebaseConfig()" 
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                  >
+                    <i data-lucide="cloud-check" class="w-4 h-4"></i>
+                    <span>Connect Live Shared Database</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Authorized Login Credentials Management -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i data-lucide="key" class="w-4 h-4 text-amber-500"></i>
+                  Authorized 2-Person Logins
+                </h4>
+                <p class="text-xs text-slate-400 mt-0.5">Exactly 2 persons can log into this GK Fitness Gym website.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <!-- User 1 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between font-bold text-amber-400">
+                  <span>User 1: Gym Owner</span>
+                  <span class="text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Admin</span>
+                </div>
+                <div>User ID: <code class="text-white font-mono bg-slate-950 px-1.5 py-0.5 rounded" id="labelOwnerUser">gkowner</code></div>
+                <div>Password: <code class="text-slate-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded" id="labelOwnerPass">gkfitness123</code></div>
+              </div>
+
+              <!-- User 2 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between font-bold text-amber-400">
+                  <span>User 2: Gym Manager / Staff</span>
+                  <span class="text-[10px] bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Manager</span>
+                </div>
+                <div>User ID: <code class="text-white font-mono bg-slate-950 px-1.5 py-0.5 rounded" id="labelManagerUser">gkmanager</code></div>
+                <div>Password: <code class="text-slate-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded" id="labelManagerPass">gkfitness456</code></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Free Hosting Step-by-Step Instructions -->
+          <div class="bg-slate-950 border border-amber-500/20 rounded-xl p-5 space-y-3">
+            <h4 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+              <i data-lucide="cloud" class="w-4 h-4"></i>
+              How to Host This Website 100% Free Forever
+            </h4>
+            <div class="text-xs text-slate-300 space-y-2 leading-relaxed">
+              <p>You can host this website online completely free without paying any monthly charges:</p>
+              <ol class="list-decimal list-inside space-y-1.5 text-slate-400 ml-1">
+                <li><strong class="text-slate-200">GitHub Pages (Recommended)</strong>: Create a free account at <a href="https://github.com" target="_blank" class="text-amber-400 underline">github.com</a>, upload this <code class="text-slate-200">index.html</code> file to a repository, and turn on GitHub Pages in Settings &rarr; Pages. Your website will be live at <code class="text-slate-200">https://yourusername.github.io/gk-fitness-gym</code>.</li>
+                <li><strong class="text-slate-200">Netlify Drop (Easiest - 10 seconds)</strong>: Visit <a href="https://app.netlify.com/drop" target="_blank" class="text-amber-400 underline">app.netlify.com/drop</a>, drag and drop this entire folder, and it will give you a free live website URL instantly!</li>
+                <li><strong class="text-slate-200">Vercel</strong>: Sign up at <a href="https://vercel.com" target="_blank" class="text-amber-400 underline">vercel.com</a>, import this project, and deploy on the free hobby tier forever.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Sample Data Loader / Reset -->
+          <div class="flex items-center justify-between pt-2">
+            <button 
+              onclick="loadSampleData()" 
+              class="text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1.5"
+            >
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>Load Realistic Sample Gym Data (For Testing)</span>
+            </button>
+            <button 
+              onclick="confirmClearAllData()" 
+              class="text-xs text-rose-500/70 hover:text-rose-400 transition-colors flex items-center gap-1.5"
+            >
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>Reset All Gym Data</span>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="no-print mt-auto py-4 border-t border-slate-800/80 bg-slate-900/40 text-center text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>GK Fitness Gym Management Portal &bull; Expiry & Revenue Tracking</div>
+        <div class="text-[11px] text-slate-600">Zero Maintenance &bull; Completely Free Hosting</div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ADD / EDIT MEMBER                   -->
+  <!-- ========================================== -->
+  <div id="memberModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 relative space-y-5 animate-fadeIn">
+      
+      <!-- Close button -->
+      <button onclick="closeMemberModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div>
+        <h3 id="modalTitle" class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-amber-500"></i>
+          Register New Member
+        </h3>
+        <p class="text-xs text-slate-400 mt-0.5">Fill in member details. Expiry date calculates automatically.</p>
+      </div>
+
+      <!-- Form -->
+      <form id="memberForm" onsubmit="saveMember(event)" class="space-y-4">
+        <input type="hidden" id="editMemberId">
+
+        <!-- Full Name -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Full Name *</label>
+          <input 
+            type="text" 
+            id="formMemberName" 
+            required 
+            placeholder="e.g. Rahul Sharma"
+            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500"
+          >
+        </div>
+
+        <!-- Phone Number -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Phone Number (10 Digits) *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">+91</span>
+            <input 
+              type="tel" 
+              id="formMemberPhone" 
+              required 
+              pattern="[0-9]{10}"
+              maxlength="10"
+              placeholder="9876543210"
+              class="w-full pl-12 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500"
+            >
+          </div>
+          <span class="text-[10px] text-slate-400">Used for sending 1-click WhatsApp expiry reminders.</span>
+        </div>
+
+        <!-- Plan Selection & Start Date -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Plan Duration *</label>
+            <select 
+              id="formPlanDuration" 
+              onchange="handlePlanChange()" 
+              class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500"
+            >
+              <option value="1">1 Month Plan</option>
+              <option value="3" selected>3 Months Plan</option>
+              <option value="6">6 Months Plan</option>
+              <option value="12">1 Year (12 Months)</option>
+              <option value="custom">Custom Duration</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Joining / Start Date *</label>
+            <input 
+              type="date" 
+              id="formStartDate" 
+              required 
+              onchange="calculateExpiryDate()"
+              class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500"
+            >
+          </div>
+        </div>
+
+        <!-- Expiry Date & Fee Paid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Expiry Date *</label>
+            <input 
+              type="date" 
+              id="formExpiryDate" 
+              required 
+              class="w-full px-3 py-2.5 bg-slate-950 border border-amber-500/60 rounded-xl text-amber-300 font-semibold text-sm focus:outline-none focus:border-amber-500"
+            >
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Fee Amount (₹) *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">₹</span>
+              <input 
+                type="number" 
+                id="formFeeAmount" 
+                required 
+                min="0"
+                step="50"
+                placeholder="e.g. 1500"
+                class="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Shift / Notes (Optional) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Shift / Slot (Optional)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+              <input type="radio" name="formShift" value="Morning" checked class="text-amber-500 focus:ring-amber-500">
+              <span class="text-xs text-slate-300">🌅 Morning Batch</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+              <input type="radio" name="formShift" value="Evening" class="text-amber-500 focus:ring-amber-500">
+              <span class="text-xs text-slate-300">🌙 Evening Batch</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Submit & Cancel -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button 
+            type="button" 
+            onclick="closeMemberModal()" 
+            class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20"
+          >
+            Save Member & Record Fee
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: QUICK RENEW MEMBERSHIP              -->
+  <!-- ========================================== -->
+  <div id="renewModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 relative space-y-5 animate-fadeIn">
+      
+      <button onclick="closeRenewModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div>
+        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="refresh-cw" class="w-5 h-5 text-emerald-400"></i>
+          Renew Membership
+        </h3>
+        <p class="text-xs text-slate-400 mt-0.5" id="renewSubtitle">Extending membership for member</p>
+      </div>
+
+      <form id="renewForm" onsubmit="handleRenewSubmit(event)" class="space-y-4">
+        <input type="hidden" id="renewMemberId">
+
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Current Expiry:</span>
+            <span class="font-bold text-slate-200" id="renewCurrentExpiryDate">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">New Expiry:</span>
+            <span class="font-bold text-emerald-400" id="renewNewExpiryDate">-</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Select Renewal Duration *</label>
+          <select 
+            id="renewDurationSelect" 
+            onchange="updateRenewDates()" 
+            class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500"
+          >
+            <option value="1">Extend by 1 Month</option>
+            <option value="3" selected>Extend by 3 Months</option>
+            <option value="6">Extend by 6 Months</option>
+            <option value="12">Extend by 1 Year</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Renewal Fee Collected (₹) *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">₹</span>
+            <input 
+              type="number" 
+              id="renewFeeInput" 
+              required 
+              min="0"
+              step="50"
+              placeholder="e.g. 1500"
+              class="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500"
+            >
+          </div>
+          <span class="text-[10px] text-slate-400">This amount will be added to this month's revenue report.</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button 
+            type="button" 
+            onclick="closeRenewModal()" 
+            class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+          >
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Confirm Renewal</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- ========================================== -->
+  <!-- APPLICATION LOGIC & SCRIPTS                -->
+  <!-- ========================================== -->
+  <script>
+    // -------------------------------------------------------------
+    // 1. CONFIGURATION & AUTHORIZED LOGINS (2 PERSONS ONLY)
+    // -------------------------------------------------------------
+    const AUTHORIZED_USERS = [
+      {
+        id: 'gkowner',
+        pass: 'gkfitness123',
+        name: 'GK Gym Owner',
+        role: 'Owner'
+      },
+      {
+        id: 'gkmanager',
+        pass: 'gkfitness456',
+        name: 'GK Gym Manager',
+        role: 'Manager'
+      }
+    ];
+
+    // Local Storage Keys
+    const STORAGE_KEY_MEMBERS = 'gk_fitness_members_v1';
+    const STORAGE_KEY_PAYMENTS = 'gk_fitness_payments_v1';
+    const STORAGE_KEY_AUTH = 'gk_fitness_auth_session';
+    const STORAGE_KEY_FIREBASE = 'gk_fitness_firebase_config';
+
+    // State Variables
+    let members = [];
+    let payments = []; // { id, memberId, memberName, amount, date, type: 'new' | 'renewal', plan: string }
+    let currentFilter = 'all';
+    let revenueChartInstance = null;
+    let currentUser = null;
+    let db = null;
+    let isCloudConnected = false;
+
+    // -------------------------------------------------------------
+    // 2. INITIALIZATION
+    // -------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      loadStoredData();
+      initFirebase();
+      checkSession();
+      // Set default join date to today in form
+      document.getElementById('formStartDate').value = getTodayDateString();
+      calculateExpiryDate();
+    });
+
+    // -------------------------------------------------------------
+    // 2.1 FIREBASE REALTIME CLOUD SYNC
+    // -------------------------------------------------------------
+    function initFirebase() {
+      const savedConfig = localStorage.getItem(STORAGE_KEY_FIREBASE);
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig);
+          const configInput = document.getElementById('firebaseConfigInput');
+          if (configInput) configInput.value = JSON.stringify(config, null, 2);
+
+          if (!firebase.apps.length) {
+            firebase.initializeApp(config);
+          }
+          db = firebase.firestore();
+          isCloudConnected = true;
+          updateCloudUI(true, config.projectId);
+          startRealtimeListeners();
+        } catch (e) {
+          console.warn('Firebase init error:', e);
+          updateCloudUI(false);
+        }
+      } else {
+        updateCloudUI(false);
+      }
+    }
+
+    function updateCloudUI(connected, projectId = '') {
+      const dot = document.getElementById('dbStatusDot');
+      const text = document.getElementById('dbStatusText');
+      const badge = document.getElementById('cloudStatusBadge');
+      const detail = document.getElementById('cloudSyncStatusDetail');
+      const disconnectBtn = document.getElementById('btnDisconnectCloud');
+
+      if (connected) {
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        if (text) {
+          text.textContent = '🟢 Live Cloud Synced';
+          text.className = 'text-emerald-400 text-[11px] font-bold hidden sm:inline';
+        }
+        if (badge) {
+          badge.textContent = '🟢 Live Cloud Active';
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+        }
+        if (detail) {
+          detail.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Connected to Firebase Project: <strong>${escapeHtml(projectId)}</strong></span>. Real-time phone-to-phone sync is active!`;
+        }
+        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+      } else {
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        if (text) {
+          text.textContent = 'Device Storage';
+          text.className = 'text-slate-300 text-[11px] hidden sm:inline';
+        }
+        if (badge) {
+          badge.textContent = 'Device Storage';
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        }
+        if (detail) {
+          detail.textContent = 'Status: Storing data locally on this device. (Connect Firebase above for real-time sync across both phones)';
+        }
+        if (disconnectBtn) disconnectBtn.classList.add('hidden');
+      }
+    }
+
+    function startRealtimeListeners() {
+      if (!db) return;
+
+      // Realtime members listener
+      db.collection('members').onSnapshot(snapshot => {
+        const cloudMembers = [];
+        snapshot.forEach(doc => cloudMembers.push(doc.data()));
+        if (cloudMembers.length > 0 || snapshot.empty) {
+          // If we received remote data, update local state
+          if (cloudMembers.length > 0) {
+            members = cloudMembers;
+            localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(members));
+            renderAll();
+          }
+        }
+      }, err => {
+        console.warn('Firestore members listener note:', err);
+      });
+
+      // Realtime payments listener
+      db.collection('payments').onSnapshot(snapshot => {
+        const cloudPayments = [];
+        snapshot.forEach(doc => cloudPayments.push(doc.data()));
+        if (cloudPayments.length > 0) {
+          payments = cloudPayments;
+          localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
+          renderAll();
+        }
+      }, err => {
+        console.warn('Firestore payments listener note:', err);
+      });
+    }
+
+    function toggleFirebaseHelp() {
+      const box = document.getElementById('firebaseHelpBox');
+      if (box) box.classList.toggle('hidden');
+    }
+
+    function saveFirebaseConfig() {
+      const rawInput = document.getElementById('firebaseConfigInput').value.trim();
+      if (!rawInput) {
+        alert('Please paste your Firebase configuration.');
+        return;
+      }
+
+      try {
+        let clean = rawInput;
+        if (clean.includes('{') && clean.includes('}')) {
+          const start = clean.indexOf('{');
+          const end = clean.lastIndexOf('}');
+          clean = clean.substring(start, end + 1);
+        }
+
+        let parsedConfig;
+        try {
+          parsedConfig = JSON.parse(clean);
+        } catch (e) {
+          const fn = new Function(`return (${clean});`);
+          parsedConfig = fn();
+        }
+
+        if (!parsedConfig || !parsedConfig.projectId) {
+          throw new Error('Missing projectId or apiKey in Firebase configuration.');
+        }
+
+        localStorage.setItem(STORAGE_KEY_FIREBASE, JSON.stringify(parsedConfig));
+
+        if (!firebase.apps.length) {
+          firebase.initializeApp(parsedConfig);
+        }
+        db = firebase.firestore();
+        isCloudConnected = true;
+        updateCloudUI(true, parsedConfig.projectId);
+        startRealtimeListeners();
+
+        if (members.length > 0 && confirm('Would you like to sync your existing local members to the cloud database now?')) {
+          uploadLocalDataToCloud();
+        }
+
+        showToast('Shared Cloud Database Connected! Real-time sync active.', 'success');
+      } catch (err) {
+        alert('Could not parse Firebase config: ' + err.message + '\n\nPlease check step 5 in the 2-minute guide.');
+      }
+    }
+
+    async function uploadLocalDataToCloud() {
+      if (!db) return;
+      try {
+        const batch = db.batch();
+        members.forEach(m => {
+          const ref = db.collection('members').doc(m.id);
+          batch.set(ref, m);
+        });
+        payments.forEach(p => {
+          const ref = db.collection('payments').doc(p.id);
+          batch.set(ref, p);
+        });
+        await batch.commit();
+        showToast('Local gym data synced to Cloud successfully!', 'success');
+      } catch (e) {
+        console.error('Error uploading local data', e);
+      }
+    }
+
+    function disconnectFirebase() {
+      if (confirm('Disconnect from Firebase cloud database and switch back to local device storage?')) {
+        localStorage.removeItem(STORAGE_KEY_FIREBASE);
+        isCloudConnected = false;
+        db = null;
+        const configInput = document.getElementById('firebaseConfigInput');
+        if (configInput) configInput.value = '';
+        updateCloudUI(false);
+        showToast('Switched to local device storage mode.', 'info');
+      }
+    }
+
+    async function syncMemberToCloud(member, action = 'set') {
+      if (db && isCloudConnected) {
+        try {
+          if (action === 'delete') {
+            await db.collection('members').doc(member.id).delete();
+          } else {
+            await db.collection('members').doc(member.id).set(member);
+          }
+        } catch (err) {
+          console.warn('Cloud sync error for member', err);
+        }
+      }
+    }
+
+    async function syncPaymentToCloud(payment) {
+      if (db && isCloudConnected) {
+        try {
+          await db.collection('payments').doc(payment.id).set(payment);
+        } catch (err) {
+          console.warn('Cloud sync error for payment', err);
+        }
+      }
+    }
+
+    function getTodayDateString() {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+
+    function checkSession() {
+      const savedSession = localStorage.getItem(STORAGE_KEY_AUTH);
+      if (savedSession) {
+        try {
+          currentUser = JSON.parse(savedSession);
+          showApp();
+        } catch (e) {
+          showLogin();
+        }
+      } else {
+        showLogin();
+      }
+    }
+
+    function showLogin() {
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('appSection').classList.add('hidden');
+      lucide.createIcons();
+    }
+
+    function showApp() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('appSection').classList.remove('hidden');
+      document.getElementById('currentUserName').textContent = currentUser ? currentUser.name : 'Authorized User';
+      lucide.createIcons();
+      renderAll();
+    }
+
+    // -------------------------------------------------------------
+    // 3. AUTHENTICATION HANDLERS
+    // -------------------------------------------------------------
+    function fillLogin(id, pass) {
+      document.getElementById('loginUsername').value = id;
+      document.getElementById('loginPassword').value = pass;
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const enteredUser = document.getElementById('loginUsername').value.trim();
+      const enteredPass = document.getElementById('loginPassword').value.trim();
+      const errorEl = document.getElementById('loginError');
+
+      const found = AUTHORIZED_USERS.find(u => u.id.toLowerCase() === enteredUser.toLowerCase() && u.pass === enteredPass);
+
+      if (found) {
+        errorEl.classList.add('hidden');
+        currentUser = { id: found.id, name: found.name, role: found.role };
+        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(currentUser));
+        showApp();
+        showToast(`Welcome ${found.name}! Logged in successfully.`, 'success');
+      } else {
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function handleLogout() {
+      if (confirm('Are you sure you want to log out of GK Fitness Gym portal?')) {
+        localStorage.removeItem(STORAGE_KEY_AUTH);
+        currentUser = null;
+        showLogin();
+        showToast('Logged out successfully.', 'info');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 4. DATA STORAGE & PERSISTENCE
+    // -------------------------------------------------------------
+    function loadStoredData() {
+      try {
+        const storedMembers = localStorage.getItem(STORAGE_KEY_MEMBERS);
+        const storedPayments = localStorage.getItem(STORAGE_KEY_PAYMENTS);
+
+        if (storedMembers) {
+          members = JSON.parse(storedMembers);
+        } else {
+          // If fresh install, leave empty or seed default demo
+          members = [];
+        }
+
+        if (storedPayments) {
+          payments = JSON.parse(storedPayments);
+        } else {
+          payments = [];
+        }
+      } catch (err) {
+        console.error('Error loading data from localStorage', err);
+        members = [];
+        payments = [];
+      }
+    }
+
+    function saveAllData() {
+      localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(members));
+      localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
+    }
+
+    // -------------------------------------------------------------
+    // 5. STATUS & EXPIRY CALCULATIONS
+    // -------------------------------------------------------------
+    // Status can be: 'active', 'expiring' (<= 7 days remaining), 'expired' (< 0 days)
+    function getMemberStatus(expiryDateStr) {
+      if (!expiryDateStr) return { status: 'expired', label: 'Expired', badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30', days: 0 };
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const expiry = new Date(expiryDateStr);
+      expiry.setHours(0, 0, 0, 0);
+
+      const diffTime = expiry - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        const overdue = Math.abs(diffDays);
+        return {
+          status: 'expired',
+          label: `Expired (${overdue}d ago)`,
+          badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+          days: diffDays
+        };
+      } else if (diffDays <= 7) {
+        return {
+          status: 'expiring',
+          label: diffDays === 0 ? 'Expires Today!' : `Expiring in ${diffDays}d`,
+          badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/30 animate-pulse',
+          days: diffDays
+        };
+      } else {
+        return {
+          status: 'active',
+          label: `Active (${diffDays}d left)`,
+          badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+          days: diffDays
+        };
+      }
+    }
+
+    // Format Date string YYYY-MM-DD to DD MMM YYYY (e.g., 25 Oct 2026)
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return 'N/A';
+      try {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          const d = new Date(parts[0], parts[1] - 1, parts[2]);
+          return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+        return dateStr;
+      } catch (e) {
+        return dateStr;
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 6. RENDER LOGIC
+    // -------------------------------------------------------------
+    function renderAll() {
+      updateDashboardKPIs();
+      renderDashboardRecentExpiries();
+      renderMembers();
+      renderMonthlyRevenueReports();
+      lucide.createIcons();
+    }
+
+    // 6.1 Dashboard KPIs
+    function updateDashboardKPIs() {
+      let activeCount = 0;
+      let expiringCount = 0;
+      let expiredCount = 0;
+
+      members.forEach(m => {
+        const info = getMemberStatus(m.expiryDate);
+        if (info.status === 'active') activeCount++;
+        else if (info.status === 'expiring') expiringCount++;
+        else if (info.status === 'expired') expiredCount++;
+      });
+
+      document.getElementById('statTotalMembers').textContent = members.length;
+      document.getElementById('badgeMemberCount').textContent = members.length;
+      document.getElementById('statActiveMembers').textContent = activeCount;
+      document.getElementById('statExpiringSoon').textContent = expiringCount;
+      document.getElementById('statExpired').textContent = expiredCount;
+
+      // Filter Counts
+      document.getElementById('count-all').textContent = members.length;
+      document.getElementById('count-active').textContent = activeCount;
+      document.getElementById('count-expiring').textContent = expiringCount;
+      document.getElementById('count-expired').textContent = expiredCount;
+
+      // Revenue for current month
+      const today = new Date();
+      const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthName = today.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      document.getElementById('statCurrentMonthLabel').textContent = currentMonthName;
+
+      let monthRevenue = 0;
+      let allTimeRevenue = 0;
+
+      payments.forEach(p => {
+        const amt = Number(p.amount) || 0;
+        allTimeRevenue += amt;
+        if (p.date && p.date.startsWith(currentYearMonth)) {
+          monthRevenue += amt;
+        }
+      });
+
+      document.getElementById('statCurrentMonthRevenue').textContent = `₹${monthRevenue.toLocaleString('en-IN')}`;
+      document.getElementById('statTotalRevenueSmall').textContent = `Total: ₹${allTimeRevenue.toLocaleString('en-IN')}`;
+
+      // Urgent Alert banner
+      const alertBox = document.getElementById('urgentAlertBox');
+      if (expiringCount > 0) {
+        alertBox.classList.remove('hidden');
+        document.getElementById('urgentAlertCount').textContent = expiringCount;
+      } else {
+        alertBox.classList.add('hidden');
+      }
+    }
+
+    // 6.2 Dashboard Recent & Upcoming Expiries
+    function renderDashboardRecentExpiries() {
+      const tbody = document.getElementById('dashboardRecentExpiryBody');
+      tbody.innerHTML = '';
+
+      if (members.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No members registered yet. Click "Add New Member" to begin.</td></tr>`;
+        return;
+      }
+
+      // Sort members: Expiring first, then expired, then by nearest expiry
+      const sorted = [...members].sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate)).slice(0, 5);
+
+      sorted.forEach(m => {
+        const statusInfo = getMemberStatus(m.expiryDate);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition-colors';
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <div class="font-bold text-white">${escapeHtml(m.name)}</div>
+            <div class="text-[11px] text-slate-400">${m.shift || 'General'} Shift</div>
+          </td>
+          <td class="py-3 px-4 font-mono text-slate-300">
+            ${m.phone}
+          </td>
+          <td class="py-3 px-4 text-slate-300">
+            ${m.planDuration || '1'} Month(s)
+          </td>
+          <td class="py-3 px-4 font-semibold text-slate-200">
+            ${formatDateDisplay(m.expiryDate)}
+          </td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${statusInfo.badgeClass}">
+              ${statusInfo.label}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right space-x-1">
+            <button onclick="sendWhatsAppReminder('${m.id}')" title="Send WhatsApp Reminder" class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 transition-all">
+              <i data-lucide="message-circle" class="w-4 h-4"></i>
+            </button>
+            <button onclick="openRenewModal('${m.id}')" title="Renew Plan" class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-slate-950 transition-all">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    // 6.3 Members Management Tab
+    function setMemberFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-slate-950');
+        btn.classList.add('bg-slate-800', 'text-slate-300');
+      });
+      const activeBtn = document.getElementById(`filter-${filter}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+        activeBtn.classList.add('bg-amber-500', 'text-slate-950');
+      }
+      renderMembers();
+    }
+
+    function filterAndShowExpiring() {
+      switchTab('members');
+      setMemberFilter('expiring');
+    }
+
+    function filterAndShowExpired() {
+      switchTab('members');
+      setMemberFilter('expired');
+    }
+
+    function renderMembers() {
+      const search = document.getElementById('memberSearchInput').value.toLowerCase().trim();
+      const tbody = document.getElementById('membersTableBody');
+      const emptyState = document.getElementById('membersEmptyState');
+      tbody.innerHTML = '';
+
+      let filtered = members.filter(m => {
+        const matchSearch = m.name.toLowerCase().includes(search) || m.phone.includes(search);
+        if (!matchSearch) return false;
+
+        const info = getMemberStatus(m.expiryDate);
+        if (currentFilter === 'active') return info.status === 'active';
+        if (currentFilter === 'expiring') return info.status === 'expiring';
+        if (currentFilter === 'expired') return info.status === 'expired';
+        return true;
+      });
+
+      // Sort filtered members: closest expiry first
+      filtered.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        filtered.forEach(m => {
+          const statusInfo = getMemberStatus(m.expiryDate);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition-colors';
+          tr.innerHTML = `
+            <td class="py-3.5 px-4">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-500 text-sm">
+                  ${m.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div class="font-bold text-white text-sm">${escapeHtml(m.name)}</div>
+                  <div class="text-xs text-slate-400 font-mono flex items-center gap-1">
+                    <i data-lucide="phone" class="w-3 h-3 text-slate-500"></i>
+                    ${m.phone} &bull; ${m.shift || 'Morning'}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="font-semibold text-slate-200 text-sm">${m.planDuration || 1} Month Plan</div>
+              <div class="text-xs text-amber-400 font-bold">₹${Number(m.feeAmount || 0).toLocaleString('en-IN')}</div>
+            </td>
+            <td class="py-3.5 px-4 text-xs text-slate-300">
+              ${formatDateDisplay(m.startDate)}
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="font-bold text-sm text-slate-100">${formatDateDisplay(m.expiryDate)}</div>
+              <div class="text-[11px] text-slate-400">${getRelativeDaysText(m.expiryDate)}</div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${statusInfo.badgeClass}">
+                ${statusInfo.label}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <button 
+                  onclick="sendWhatsAppReminder('${m.id}')" 
+                  title="Send WhatsApp Reminder" 
+                  class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 transition-all"
+                >
+                  <i data-lucide="message-circle" class="w-4 h-4"></i>
+                </button>
+                <button 
+                  onclick="openRenewModal('${m.id}')" 
+                  title="Renew Membership Plan" 
+                  class="p-2 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-slate-950 transition-all font-semibold text-xs flex items-center gap-1"
+                >
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  <span class="hidden sm:inline">Renew</span>
+                </button>
+                <button 
+                  onclick="openEditMemberModal('${m.id}')" 
+                  title="Edit Member" 
+                  class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all"
+                >
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+                <button 
+                  onclick="deleteMember('${m.id}')" 
+                  title="Delete Member" 
+                  class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all"
+                >
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      lucide.createIcons();
+    }
+
+    function getRelativeDaysText(expiryDateStr) {
+      if (!expiryDateStr) return '';
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const exp = new Date(expiryDateStr);
+      exp.setHours(0,0,0,0);
+      const diff = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+      if (diff === 0) return 'Expires Today';
+      if (diff > 0) return `${diff} days remaining`;
+      return `${Math.abs(diff)} days overdue`;
+    }
+
+    // -------------------------------------------------------------
+    // 7. MONTHLY REVENUE REPORT & CHART
+    // -------------------------------------------------------------
+    function renderMonthlyRevenueReports() {
+      // Aggregate payments by Month-Year (YYYY-MM)
+      const monthlyData = {};
+      let allTimeTotal = 0;
+
+      // Group payments
+      payments.forEach(p => {
+        const amt = Number(p.amount) || 0;
+        allTimeTotal += amt;
+        const ym = p.date ? p.date.substring(0, 7) : 'Unknown';
+        
+        if (!monthlyData[ym]) {
+          monthlyData[ym] = {
+            yearMonth: ym,
+            totalRevenue: 0,
+            newCount: 0,
+            renewCount: 0,
+            totalTx: 0
+          };
+        }
+        monthlyData[ym].totalRevenue += amt;
+        monthlyData[ym].totalTx += 1;
+        if (p.type === 'renewal') {
+          monthlyData[ym].renewCount += 1;
+        } else {
+          monthlyData[ym].newCount += 1;
+        }
+      });
+
+      // Sort months chronologically
+      const sortedKeys = Object.keys(monthlyData).sort();
+      const currentYM = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthData = monthlyData[currentYM] || { totalRevenue: 0, totalTx: 0 };
+
+      // Update KPI widgets
+      document.getElementById('reportAllTimeTotal').textContent = `₹${allTimeTotal.toLocaleString('en-IN')}`;
+      document.getElementById('reportAllTimeCount').textContent = `${payments.length} transactions recorded`;
+      document.getElementById('reportCurrentMonthTotal').textContent = `₹${currentMonthData.totalRevenue.toLocaleString('en-IN')}`;
+      document.getElementById('reportCurrentMonthCount').textContent = `${currentMonthData.totalTx} payments received this month`;
+
+      const numMonths = sortedKeys.length > 0 ? sortedKeys.length : 1;
+      const avgRevenue = Math.round(allTimeTotal / numMonths);
+      document.getElementById('reportAverageMonthly').textContent = `₹${avgRevenue.toLocaleString('en-IN')}`;
+
+      // Populate Table (Most recent months first)
+      const tbody = document.getElementById('monthlyReportTableBody');
+      tbody.innerHTML = '';
+
+      if (sortedKeys.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No payment records yet. Adding or renewing members automatically tracks monthly revenue.</td></tr>`;
+      } else {
+        [...sortedKeys].reverse().forEach(ym => {
+          const item = monthlyData[ym];
+          const displayMonth = formatYearMonth(ym);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-800/40 transition-colors';
+          tr.innerHTML = `
+            <td class="py-3.5 px-4 font-bold text-white">
+              ${displayMonth}
+            </td>
+            <td class="py-3.5 px-4 text-slate-300">
+              <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-semibold">${item.newCount}</span>
+            </td>
+            <td class="py-3.5 px-4 text-slate-300">
+              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-semibold">${item.renewCount}</span>
+            </td>
+            <td class="py-3.5 px-4 text-slate-300 font-semibold">
+              ${item.totalTx} payments
+            </td>
+            <td class="py-3.5 px-4 text-right font-extrabold text-amber-400 text-base">
+              ₹${item.totalRevenue.toLocaleString('en-IN')}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Draw / Update Chart.js
+      renderRevenueChart(sortedKeys, monthlyData);
+    }
+
+    function formatYearMonth(ymStr) {
+      if (!ymStr || ymStr === 'Unknown') return 'Unknown';
+      const parts = ymStr.split('-');
+      if (parts.length === 2) {
+        const d = new Date(parts[0], parts[1] - 1, 1);
+        return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+      }
+      return ymStr;
+    }
+
+    function renderRevenueChart(keys, monthlyData) {
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      const labels = keys.map(k => formatYearMonth(k));
+      const values = keys.map(k => monthlyData[k].totalRevenue);
+
+      if (revenueChartInstance) {
+        revenueChartInstance.destroy();
+      }
+
+      revenueChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels.length > 0 ? labels : ['Current'],
+          datasets: [{
+            label: 'Revenue (₹)',
+            data: values.length > 0 ? values : [0],
+            backgroundColor: 'rgba(245, 158, 11, 0.8)',
+            borderColor: '#f59e0b',
+            borderWidth: 1.5,
+            borderRadius: 8,
+            hoverBackgroundColor: '#fbbf24'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#fff',
+              bodyColor: '#f59e0b',
+              borderColor: '#334155',
+              borderWidth: 1,
+              callbacks: {
+                label: function(context) {
+                  return ` Revenue: ₹${context.parsed.y.toLocaleString('en-IN')}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(51, 65, 85, 0.3)'
+              },
+              ticks: {
+                color: '#94a3b8',
+                font: { family: 'Plus Jakarta Sans', size: 11 }
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(51, 65, 85, 0.3)'
+              },
+              ticks: {
+                color: '#94a3b8',
+                font: { family: 'Plus Jakarta Sans', size: 11 },
+                callback: function(val) {
+                  return '₹' + val.toLocaleString('en-IN');
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Export Revenue Table to CSV
+    function exportRevenueCSV() {
+      if (payments.length === 0) {
+        alert('No payment records to export yet.');
+        return;
+      }
+
+      let csv = 'Payment ID,Date,Member Name,Type,Amount (INR),Plan\n';
+      payments.forEach(p => {
+        csv += `"${p.id}","${p.date}","${(p.memberName || '').replace(/"/g, '""')}","${p.type}","${p.amount}","${p.plan || ''}"\n`;
+      });
+
+      downloadFile(csv, `GK_Fitness_Revenue_Report_${getTodayDateString()}.csv`, 'text/csv');
+      showToast('Revenue Report downloaded as CSV!', 'success');
+    }
+
+    // -------------------------------------------------------------
+    // 8. ADD & EDIT MEMBER MODAL HANDLERS
+    // -------------------------------------------------------------
+    function openAddMemberModal() {
+      document.getElementById('editMemberId').value = '';
+      document.getElementById('modalTitle').innerHTML = `
+        <i data-lucide="user-plus" class="w-5 h-5 text-amber-500"></i>
+        Register New Member
+      `;
+      document.getElementById('formMemberName').value = '';
+      document.getElementById('formMemberPhone').value = '';
+      document.getElementById('formPlanDuration').value = '3';
+      document.getElementById('formStartDate').value = getTodayDateString();
+      document.getElementById('formFeeAmount').value = '2500';
+      calculateExpiryDate();
+
+      document.getElementById('memberModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function openEditMemberModal(memberId) {
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      document.getElementById('editMemberId').value = member.id;
+      document.getElementById('modalTitle').innerHTML = `
+        <i data-lucide="edit-3" class="w-5 h-5 text-amber-500"></i>
+        Edit Member Details
+      `;
+      document.getElementById('formMemberName').value = member.name;
+      document.getElementById('formMemberPhone').value = member.phone;
+      document.getElementById('formPlanDuration').value = member.planDuration || '1';
+      document.getElementById('formStartDate').value = member.startDate;
+      document.getElementById('formExpiryDate').value = member.expiryDate;
+      document.getElementById('formFeeAmount').value = member.feeAmount || '1000';
+
+      const radios = document.getElementsByName('formShift');
+      for (const r of radios) {
+        if (r.value === member.shift) r.checked = true;
+      }
+
+      document.getElementById('memberModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeMemberModal() {
+      document.getElementById('memberModal').classList.add('hidden');
+    }
+
+    function handlePlanChange() {
+      calculateExpiryDate();
+    }
+
+    function calculateExpiryDate() {
+      const startDateStr = document.getElementById('formStartDate').value;
+      const planVal = document.getElementById('formPlanDuration').value;
+
+      if (!startDateStr || planVal === 'custom') return;
+
+      const months = parseInt(planVal, 10);
+      const start = new Date(startDateStr);
+      // Add months to start date
+      start.setMonth(start.getMonth() + months);
+
+      const y = start.getFullYear();
+      const m = String(start.getMonth() + 1).padStart(2, '0');
+      const d = String(start.getDate()).padStart(2, '0');
+      document.getElementById('formExpiryDate').value = `${y}-${m}-${d}`;
+    }
+
+    function saveMember(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editMemberId').value;
+      const name = document.getElementById('formMemberName').value.trim();
+      const phone = document.getElementById('formMemberPhone').value.trim();
+      const plan = document.getElementById('formPlanDuration').value;
+      const startDate = document.getElementById('formStartDate').value;
+      const expiryDate = document.getElementById('formExpiryDate').value;
+      const fee = Number(document.getElementById('formFeeAmount').value) || 0;
+
+      let shift = 'Morning';
+      const radios = document.getElementsByName('formShift');
+      for (const r of radios) {
+        if (r.checked) shift = r.value;
+      }
+
+      if (editId) {
+        // Edit existing member
+        const index = members.findIndex(m => m.id === editId);
+        if (index !== -1) {
+          members[index].name = name;
+          members[index].phone = phone;
+          members[index].planDuration = plan;
+          members[index].startDate = startDate;
+          members[index].expiryDate = expiryDate;
+          members[index].feeAmount = fee;
+          members[index].shift = shift;
+          syncMemberToCloud(members[index], 'set');
+          showToast(`Updated details for ${name}`, 'success');
+        }
+      } else {
+        // New Member Registration
+        const newMember = {
+          id: 'M-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+          name: name,
+          phone: phone,
+          planDuration: plan,
+          startDate: startDate,
+          expiryDate: expiryDate,
+          feeAmount: fee,
+          shift: shift,
+          createdAt: new Date().toISOString()
+        };
+        members.push(newMember);
+
+        // Record Initial Payment
+        const paymentRecord = {
+          id: 'P-' + Date.now().toString(36),
+          memberId: newMember.id,
+          memberName: name,
+          amount: fee,
+          date: startDate,
+          type: 'new',
+          plan: `${plan} Month Plan`
+        };
+        payments.push(paymentRecord);
+
+        syncMemberToCloud(newMember, 'set');
+        syncPaymentToCloud(paymentRecord);
+
+        showToast(`Registered ${name} successfully! Fee: ₹${fee}`, 'success');
+      }
+
+      saveAllData();
+      closeMemberModal();
+      renderAll();
+    }
+
+    function deleteMember(memberId) {
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      if (confirm(`Are you sure you want to delete member "${member.name}"?`)) {
+        members = members.filter(m => m.id !== memberId);
+        syncMemberToCloud({ id: memberId }, 'delete');
+        saveAllData();
+        renderAll();
+        showToast(`Member ${member.name} deleted.`, 'info');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 9. RENEWAL MODAL & WORKFLOW
+    // -------------------------------------------------------------
+    function openRenewModal(memberId) {
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      document.getElementById('renewMemberId').value = member.id;
+      document.getElementById('renewSubtitle').textContent = `Member: ${member.name} (${member.phone})`;
+      document.getElementById('renewCurrentExpiryDate').textContent = formatDateDisplay(member.expiryDate);
+      document.getElementById('renewDurationSelect').value = '1';
+      document.getElementById('renewFeeInput').value = member.feeAmount || '1000';
+
+      updateRenewDates();
+      document.getElementById('renewModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeRenewModal() {
+      document.getElementById('renewModal').classList.add('hidden');
+    }
+
+    function updateRenewDates() {
+      const memberId = document.getElementById('renewMemberId').value;
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      const durationMonths = parseInt(document.getElementById('renewDurationSelect').value, 10);
+      
+      // If current expiry is in the past, renew starts from today; if still active, renew extends from current expiry
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const currentExpiry = new Date(member.expiryDate);
+      currentExpiry.setHours(0,0,0,0);
+
+      const baseDate = currentExpiry > today ? currentExpiry : today;
+      const newExpiry = new Date(baseDate);
+      newExpiry.setMonth(newExpiry.getMonth() + durationMonths);
+
+      const y = newExpiry.getFullYear();
+      const m = String(newExpiry.getMonth() + 1).padStart(2, '0');
+      const d = String(newExpiry.getDate()).padStart(2, '0');
+      const newExpiryStr = `${y}-${m}-${d}`;
+
+      document.getElementById('renewNewExpiryDate').textContent = formatDateDisplay(newExpiryStr);
+    }
+
+    function handleRenewSubmit(e) {
+      e.preventDefault();
+      const memberId = document.getElementById('renewMemberId').value;
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      const durationMonths = parseInt(document.getElementById('renewDurationSelect').value, 10);
+      const renewFee = Number(document.getElementById('renewFeeInput').value) || 0;
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const currentExpiry = new Date(member.expiryDate);
+      currentExpiry.setHours(0,0,0,0);
+
+      const baseDate = currentExpiry > today ? currentExpiry : today;
+      const newExpiry = new Date(baseDate);
+      newExpiry.setMonth(newExpiry.getMonth() + durationMonths);
+
+      const y = newExpiry.getFullYear();
+      const m = String(newExpiry.getMonth() + 1).padStart(2, '0');
+      const d = String(newExpiry.getDate()).padStart(2, '0');
+      const newExpiryStr = `${y}-${m}-${d}`;
+
+      // Update Member
+      member.expiryDate = newExpiryStr;
+      member.planDuration = durationMonths;
+
+      // Add Payment Record
+      const paymentRecord = {
+        id: 'P-' + Date.now().toString(36),
+        memberId: member.id,
+        memberName: member.name,
+        amount: renewFee,
+        date: getTodayDateString(),
+        type: 'renewal',
+        plan: `${durationMonths} Month Renewal`
+      };
+      payments.push(paymentRecord);
+
+      syncMemberToCloud(member, 'set');
+      syncPaymentToCloud(paymentRecord);
+
+      saveAllData();
+      closeRenewModal();
+      renderAll();
+
+      showToast(`Renewed membership for ${member.name}! New expiry: ${formatDateDisplay(newExpiryStr)}`, 'success');
+    }
+
+    // -------------------------------------------------------------
+    // 10. 1-CLICK WHATSAPP EXPIRY REMINDER
+    // -------------------------------------------------------------
+    function sendWhatsAppReminder(memberId) {
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+
+      const cleanPhone = member.phone.replace(/[^0-9]/g, '');
+      const formattedDate = formatDateDisplay(member.expiryDate);
+      const statusInfo = getMemberStatus(member.expiryDate);
+
+      let msg = '';
+      if (statusInfo.status === 'expired') {
+        msg = `Hello ${member.name}! 👋\nThis is a gentle reminder from *GK Fitness Gym*. Your gym membership has expired on *${formattedDate}*. Please renew your plan today to keep up your training routine! 🏋️‍♂️💪\n\nThank you,\n*GK Fitness Gym*`;
+      } else {
+        msg = `Hello ${member.name}! 👋\nGreetings from *GK Fitness Gym*. Your membership is expiring on *${formattedDate}*. Kindly renew before expiry to enjoy uninterrupted workouts! 🏋️‍♂️🔥\n\nThank you,\n*GK Fitness Gym*`;
+      }
+
+      const waUrl = `https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(msg)}`;
+      window.open(waUrl, '_blank');
+      showToast(`Opening WhatsApp for ${member.name}...`, 'info');
+    }
+
+    // -------------------------------------------------------------
+    // 11. TAB SWITCHING
+    // -------------------------------------------------------------
+    function switchTab(tabName) {
+      ['dashboard', 'members', 'reports', 'settings'].forEach(t => {
+        const tabEl = document.getElementById(`tab-${t}`);
+        const navBtn = document.getElementById(`nav-${t}`);
+        const mobBtn = document.getElementById(`mob-${t}`);
+
+        if (t === tabName) {
+          tabEl.classList.remove('hidden');
+          if (navBtn) {
+            navBtn.classList.remove('text-slate-300', 'hover:bg-slate-800/60');
+            navBtn.classList.add('bg-amber-500', 'text-slate-950', 'shadow-sm');
+          }
+          if (mobBtn) {
+            mobBtn.classList.remove('text-slate-400');
+            mobBtn.classList.add('text-amber-500');
+          }
+        } else {
+          tabEl.classList.add('hidden');
+          if (navBtn) {
+            navBtn.classList.add('text-slate-300', 'hover:bg-slate-800/60');
+            navBtn.classList.remove('bg-amber-500', 'text-slate-950', 'shadow-sm');
+          }
+          if (mobBtn) {
+            mobBtn.classList.add('text-slate-400');
+            mobBtn.classList.remove('text-amber-500');
+          }
+        }
+      });
+
+      if (tabName === 'reports') {
+        renderMonthlyRevenueReports();
+      } else if (tabName === 'dashboard') {
+        renderAll();
+      } else if (tabName === 'members') {
+        renderMembers();
+      }
+      lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------
+    // 12. BACKUP & RESTORE JSON
+    // -------------------------------------------------------------
+    function exportFullBackupJSON() {
+      const backupData = {
+        app: 'GK Fitness Gym',
+        exportedAt: new Date().toISOString(),
+        members: members,
+        payments: payments
+      };
+
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      downloadFile(jsonStr, `GK_Fitness_Backup_${getTodayDateString()}.json`, 'application/json');
+      showToast('Backup file saved successfully!', 'success');
+    }
+
+    function importFullBackupJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported.members) && Array.isArray(imported.payments)) {
+            members = imported.members;
+            payments = imported.payments;
+            saveAllData();
+            renderAll();
+            showToast('All gym data restored successfully!', 'success');
+          } else {
+            alert('Invalid backup file format.');
+          }
+        } catch (err) {
+          alert('Failed to parse the backup file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function downloadFile(content, fileName, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // -------------------------------------------------------------
+    // 13. SAMPLE DATA (OPTIONAL SEED FOR DEMO)
+    // -------------------------------------------------------------
+    function loadSampleData() {
+      if (confirm('Load realistic sample gym members and payments for testing? (Existing data will be merged)')) {
+        const today = new Date();
+        
+        function makeDate(daysOffset) {
+          const d = new Date();
+          d.setDate(today.getDate() + daysOffset);
+          return d.toISOString().split('T')[0];
+        }
+
+        const sampleMembers = [
+          {
+            id: 'M-101',
+            name: 'Aman Verma',
+            phone: '9823011223',
+            planDuration: '3',
+            startDate: makeDate(-80),
+            expiryDate: makeDate(10), // Active, 10 days left
+            feeAmount: 2400,
+            shift: 'Morning'
+          },
+          {
+            id: 'M-102',
+            name: 'Pooja Kulkarni',
+            phone: '9845012345',
+            planDuration: '1',
+            startDate: makeDate(-28),
+            expiryDate: makeDate(2), // Expiring in 2 days!
+            feeAmount: 1000,
+            shift: 'Evening'
+          },
+          {
+            id: 'M-103',
+            name: 'Vikram Jadhav',
+            phone: '9890123456',
+            planDuration: '6',
+            startDate: makeDate(-185),
+            expiryDate: makeDate(-5), // Expired 5 days ago!
+            feeAmount: 4500,
+            shift: 'Morning'
+          },
+          {
+            id: 'M-104',
+            name: 'Sneha Patil',
+            phone: '9765432109',
+            planDuration: '12',
+            startDate: makeDate(-60),
+            expiryDate: makeDate(305), // Active
+            feeAmount: 8500,
+            shift: 'Morning'
+          },
+          {
+            id: 'M-105',
+            name: 'Rohan Deshmukh',
+            phone: '9850114477',
+            planDuration: '1',
+            startDate: makeDate(-30),
+            expiryDate: makeDate(0), // Expires today!
+            feeAmount: 1000,
+            shift: 'Evening'
+          }
+        ];
+
+        const samplePayments = [
+          { id: 'P-1', memberId: 'M-101', memberName: 'Aman Verma', amount: 2400, date: makeDate(-80), type: 'new', plan: '3 Month Plan' },
+          { id: 'P-2', memberId: 'M-102', memberName: 'Pooja Kulkarni', amount: 1000, date: makeDate(-28), type: 'new', plan: '1 Month Plan' },
+          { id: 'P-3', memberId: 'M-103', memberName: 'Vikram Jadhav', amount: 4500, date: makeDate(-185), type: 'new', plan: '6 Month Plan' },
+          { id: 'P-4', memberId: 'M-104', memberName: 'Sneha Patil', amount: 8500, date: makeDate(-60), type: 'new', plan: '12 Month Plan' },
+          { id: 'P-5', memberId: 'M-105', memberName: 'Rohan Deshmukh', amount: 1000, date: makeDate(-30), type: 'new', plan: '1 Month Plan' },
+          { id: 'P-6', memberId: 'M-103', memberName: 'Vikram Jadhav', amount: 1000, date: makeDate(-10), type: 'renewal', plan: '1 Month Renewal' }
+        ];
+
+        members = sampleMembers;
+        payments = samplePayments;
+        saveAllData();
+        renderAll();
+        showToast('Sample gym data loaded!', 'success');
+      }
+    }
+
+    function confirmClearAllData() {
+      if (confirm('WARNING: This will permanently wipe all member and revenue data. Are you sure?')) {
+        members = [];
+        payments = [];
+        saveAllData();
+        renderAll();
+        showToast('All gym data has been reset.', 'info');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 14. TOAST NOTIFICATIONS & UTILS
+    // -------------------------------------------------------------
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let borderClass = 'border-slate-700 text-slate-200';
+      let icon = 'info';
+      if (type === 'success') {
+        borderClass = 'border-emerald-500/40 text-emerald-300';
+        icon = 'check-circle-2';
+      } else if (type === 'warning') {
+        borderClass = 'border-orange-500/40 text-orange-300';
+        icon = 'alert-triangle';
+      }
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 bg-slate-900 border ${borderClass} px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold animate-fadeIn`;
+      toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i>
+        <span>${message}</span>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function escapeHtml(string) {
+      if (!string) return '';
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
