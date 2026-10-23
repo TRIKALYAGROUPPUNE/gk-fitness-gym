@@ -523,7 +523,7 @@
               Automated breakdown of fees collected from new admissions and membership renewals.
             </p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <button 
               onclick="window.print()" 
               class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-all"
@@ -537,6 +537,14 @@
             >
               <i data-lucide="download" class="w-4 h-4"></i>
               <span>Export CSV</span>
+            </button>
+            <button 
+              onclick="confirmResetRevenue()" 
+              title="Reset all revenue payment records to ₹0"
+              class="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl text-xs font-bold border border-rose-500/30 flex items-center gap-1.5 transition-all"
+            >
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              <span>Reset Revenue</span>
             </button>
           </div>
         </div>
@@ -1165,14 +1173,10 @@
       db.collection('members').onSnapshot(snapshot => {
         const cloudMembers = [];
         snapshot.forEach(doc => cloudMembers.push(doc.data()));
-        if (cloudMembers.length > 0 || snapshot.empty) {
-          // If we received remote data, update local state
-          if (cloudMembers.length > 0) {
-            members = cloudMembers;
-            localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(members));
-            renderAll();
-          }
-        }
+        members = cloudMembers;
+        localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(members));
+        cleanOrphanPayments();
+        renderAll();
       }, err => {
         console.warn('Firestore members listener note:', err);
       });
@@ -1181,11 +1185,10 @@
       db.collection('payments').onSnapshot(snapshot => {
         const cloudPayments = [];
         snapshot.forEach(doc => cloudPayments.push(doc.data()));
-        if (cloudPayments.length > 0) {
-          payments = cloudPayments;
-          localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
-          renderAll();
-        }
+        payments = cloudPayments;
+        localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
+        cleanOrphanPayments();
+        renderAll();
       }, err => {
         console.warn('Firestore payments listener note:', err);
       });
@@ -1391,7 +1394,6 @@
         if (storedMembers) {
           members = JSON.parse(storedMembers);
         } else {
-          // If fresh install, leave empty or seed default demo
           members = [];
         }
 
@@ -1400,10 +1402,30 @@
         } else {
           payments = [];
         }
+
+        // Clean any orphan payments from members deleted previously
+        cleanOrphanPayments();
       } catch (err) {
         console.error('Error loading data from localStorage', err);
         members = [];
         payments = [];
+      }
+    }
+
+    // Automatically remove payments of members who no longer exist
+    function cleanOrphanPayments() {
+      if (!Array.isArray(members) || members.length === 0) {
+        if (payments.length > 0) {
+          payments = [];
+          saveAllData();
+        }
+      } else {
+        const activeMemberIds = new Set(members.map(m => m.id));
+        const validPayments = payments.filter(p => p.memberId && activeMemberIds.has(p.memberId));
+        if (validPayments.length !== payments.length) {
+          payments = validPayments;
+          saveAllData();
+        }
       }
     }
 
@@ -1998,6 +2020,15 @@
           members[index].feeAmount = fee;
           members[index].shift = shift;
           syncMemberToCloud(members[index], 'set');
+
+          // If the fee or name was changed on edit, update the initial payment record as well
+          const initialPay = payments.find(p => p.memberId === editId && p.type === 'new');
+          if (initialPay) {
+            initialPay.amount = fee;
+            initialPay.memberName = name;
+            syncPaymentToCloud(initialPay);
+          }
+
           showToast(`Updated details for ${name}`, 'success');
         }
       } else {
@@ -2042,12 +2073,27 @@
       const member = members.find(m => m.id === memberId);
       if (!member) return;
 
-      if (confirm(`Are you sure you want to delete member "${member.name}"?`)) {
+      if (confirm(`Are you sure you want to delete member "${member.name}"?\n\nThis will remove their profile and deduct their fee from the revenue reports.`)) {
+        // 1. Remove member from members list
         members = members.filter(m => m.id !== memberId);
-        syncMemberToCloud({ id: memberId }, 'delete');
+
+        // 2. Remove all payments of this member so monthly revenue report is 100% accurate
+        const deletedPayments = payments.filter(p => p.memberId === memberId);
+        payments = payments.filter(p => p.memberId !== memberId);
+
+        // 3. Save locally
         saveAllData();
+
+        // 4. Cloud sync deletion
+        if (db && isCloudConnected) {
+          syncMemberToCloud({ id: memberId }, 'delete');
+          deletedPayments.forEach(p => {
+            db.collection('payments').doc(p.id).delete().catch(e => console.warn('Payment delete error:', e));
+          });
+        }
+
         renderAll();
-        showToast(`Member ${member.name} deleted.`, 'info');
+        showToast(`Member "${member.name}" and corresponding revenue removed.`, 'info');
       }
     }
 
@@ -2347,14 +2393,59 @@
       }
     }
 
-    function confirmClearAllData() {
-      if (confirm('WARNING: This will permanently wipe all member and revenue data. Are you sure?')) {
-        members = [];
-        payments = [];
-        saveAllData();
-        renderAll();
-        showToast('All gym data has been reset.', 'info');
+    async function confirmClearAllData() {
+      if (!confirm('WARNING: This will permanently wipe all member and revenue data. Are you sure?')) {
+        return;
       }
+
+      members = [];
+      payments = [];
+      localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify([]));
+
+      // Wipe Firestore collections if connected
+      if (db && isCloudConnected) {
+        try {
+          showToast('Clearing cloud database...', 'info');
+          const memSnap = await db.collection('members').get();
+          const memBatch = db.batch();
+          memSnap.forEach(doc => memBatch.delete(doc.ref));
+          await memBatch.commit();
+
+          const paySnap = await db.collection('payments').get();
+          const payBatch = db.batch();
+          paySnap.forEach(doc => payBatch.delete(doc.ref));
+          await payBatch.commit();
+        } catch (err) {
+          console.error('Error clearing cloud database:', err);
+        }
+      }
+
+      renderAll();
+      showToast('All gym members and revenue records have been completely reset to 0.', 'success');
+    }
+
+    async function confirmResetRevenue() {
+      if (!confirm('Are you sure you want to reset all revenue payment records to ₹0?\n\n(Registered members will stay intact)')) {
+        return;
+      }
+
+      payments = [];
+      localStorage.setItem(STORAGE_KEY_PAYMENTS, JSON.stringify([]));
+
+      if (db && isCloudConnected) {
+        try {
+          const paySnap = await db.collection('payments').get();
+          const payBatch = db.batch();
+          paySnap.forEach(doc => payBatch.delete(doc.ref));
+          await payBatch.commit();
+        } catch (err) {
+          console.error('Error resetting revenue in cloud:', err);
+        }
+      }
+
+      renderAll();
+      showToast('All revenue records have been reset to ₹0.', 'success');
     }
 
     // -------------------------------------------------------------
